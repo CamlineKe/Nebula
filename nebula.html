@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NEBULA | Immersive 3D Experience</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Space+Grotesk:wght@300;500;700&display=swap" rel="stylesheet">
+  
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <!-- Tailwind Configuration -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            display: ['Space Grotesk', 'sans-serif'],
+          },
+          colors: {
+            nebula: {
+              dark: '#050510',
+              primary: '#1a1a2e',
+              accent: '#00f2ff',
+              purple: '#bd00ff',
+              glass: 'rgba(255, 255, 255, 0.05)',
+            }
+          },
+          animation: {
+            'float': 'float 6s ease-in-out infinite',
+            'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+          },
+          keyframes: {
+            float: {
+              '0%, 100%': { transform: 'translateY(0)' },
+              '50%': { transform: 'translateY(-20px)' },
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    :root {
+      --cursor-x: 50%;
+      --cursor-y: 50%;
+    }
+    
+    body {
+      background-color: #050510;
+      color: #ffffff;
+      overflow-x: hidden;
+    }
+
+    #canvas-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+      pointer-events: auto;
+    }
+
+    .content-layer {
+      position: relative;
+      z-index: 10;
+      pointer-events: none;
+    }
+    
+    .interactive {
+      pointer-events: auto;
+    }
+
+    .glass-panel {
+      background: rgba(255, 255, 255, 0.03);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+    }
+
+    .glass-card {
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.02));
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+      transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .glass-card:hover {
+      transform: translateY(-10px) scale(1.02);
+      border-color: rgba(0, 242, 255, 0.3);
+      box-shadow: 0 20px 40px rgba(0, 242, 255, 0.1);
+    }
+
+    .text-gradient {
+      background: linear-gradient(to right, #ffffff, #a5b4fc);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    
+    .text-gradient-accent {
+      background: linear-gradient(135deg, #00f2ff, #bd00ff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .glow-text {
+      text-shadow: 0 0 40px rgba(0, 242, 255, 0.3);
+    }
+
+    .reveal {
+      opacity: 0;
+      transform: translateY(30px);
+      transition: all 0.8s cubic-bezier(0.5, 0, 0, 1);
+    }
+    
+    .reveal.active {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #050510;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #333;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #00f2ff;
+    }
+
+    /* Image hover zoom effect */
+    .img-zoom-container {
+      overflow: hidden;
+    }
+    .img-zoom {
+      transition: transform 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .glass-card:hover .img-zoom {
+      transform: scale(1.1);
+    }
+  </style>
+</head>
+<body class="antialiased selection:bg-nebula-accent selection:text-nebula-dark">
+
+  <!-- 3D Background Canvas -->
+  <div id="canvas-container">
+    <canvas id="starfield"></canvas>
+  </div>
+
+  <!-- Navigation -->
+  <nav class="fixed top-0 w-full z-50 transition-all duration-300" id="navbar">
+    <div class="max-w-7xl mx-auto px-6 py-4">
+      <div class="glass-panel rounded-full px-6 py-3 flex items-center justify-between">
+        <div class="flex items-center gap-2 interactive cursor-pointer group">
+          <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-nebula-accent to-nebula-purple flex items-center justify-center group-hover:rotate-180 transition-transform duration-700">
+            <i data-lucide="hexagon" class="w-5 h-5 text-white fill-white"></i>
+          </div>
+          <span class="font-display font-bold text-xl tracking-wider text-white">NEBULA</span>
+        </div>
+        
+        <div class="hidden md:flex items-center gap-8">
+          <a href="#features" class="interactive text-sm font-medium text-gray-300 hover:text-white transition-colors relative group">
+            Features
+            <span class="absolute -bottom-1 left-0 w-0 h-0.5 bg-nebula-accent transition-all group-hover:w-full"></span>
+          </a>
+          <a href="#showcase" class="interactive text-sm font-medium text-gray-300 hover:text-white transition-colors relative group">
+            Showcase
+            <span class="absolute -bottom-1 left-0 w-0 h-0.5 bg-nebula-accent transition-all group-hover:w-full"></span>
+          </a>
+          <a href="#pricing" class="interactive text-sm font-medium text-gray-300 hover:text-white transition-colors relative group">
+            Pricing
+            <span class="absolute -bottom-1 left-0 w-0 h-0.5 bg-nebula-accent transition-all group-hover:w-full"></span>
+          </a>
+        </div>
+
+        <button class="interactive px-6 py-2 rounded-full bg-white text-nebula-dark font-semibold text-sm hover:bg-nebula-accent hover:scale-105 transition-all duration-300 shadow-[0_0_20px_rgba(255,255,255,0.3)] flex items-center gap-2">
+          <span>Get Started</span>
+          <i data-lucide="arrow-right" class="w-4 h-4"></i>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="content-layer">
+    
+    <!-- Hero Section -->
+    <section class="min-h-screen flex items-center justify-center relative px-6 pt-20">
+      <div class="max-w-5xl mx-auto text-center z-10">
+        <div class="inline-flex items-center gap-2 mb-6 animate-float glass-panel px-4 py-2 rounded-full border border-nebula-accent/20">
+          <i data-lucide="sparkles" class="w-4 h-4 text-nebula-accent"></i>
+          <span class="text-nebula-accent text-xs font-bold tracking-[0.2em] uppercase">
+            Next Gen Interface
+          </span>
+        </div>
+        
+        <h1 class="font-display text-6xl md:text-8xl font-bold mb-8 leading-tight">
+          <span class="block text-gradient reveal">Explore the</span>
+          <span class="block text-gradient-accent glow-text reveal" style="transition-delay: 100ms;">Digital Cosmos</span>
+        </h1>
+        
+        <p class="text-lg md:text-xl text-gray-400 max-w-2xl mx-auto mb-12 leading-relaxed reveal" style="transition-delay: 200ms;">
+          Experience a seamless blend of 3D interactivity and glassmorphic design. 
+          Where data meets the stars.
+        </p>
+        
+        <div class="flex flex-col sm:flex-row gap-4 justify-center items-center reveal" style="transition-delay: 300ms;">
+          <button class="interactive group relative px-8 py-4 bg-white text-nebula-dark rounded-full font-bold overflow-hidden transition-all hover:shadow-[0_0_40px_rgba(255,255,255,0.4)] flex items-center gap-2">
+            <span class="relative z-10">Start Journey</span>
+            <i data-lucide="rocket" class="w-4 h-4 relative z-10 group-hover:translate-x-1 transition-transform"></i>
+            <div class="absolute inset-0 bg-gradient-to-r from-nebula-accent to-white opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+          </button>
+          
+          <button class="interactive px-8 py-4 rounded-full glass-panel text-white font-medium hover:bg-white/10 transition-all border border-white/10 flex items-center gap-2">
+            <i data-lucide="play-circle" class="w-5 h-5"></i>
+            <span>View Demo</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Scroll Indicator -->
+      <div class="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 opacity-50 animate-pulse-slow interactive">
+        <span class="text-[10px] uppercase tracking-widest">Scroll</span>
+        <div class="w-[1px] h-12 bg-gradient-to-b from-white to-transparent"></div>
+      </div>
+    </section>
+
+    <!-- Features Grid with Unsplash Images -->
+    <section id="features" class="py-32 px-6 relative">
+      <div class="max-w-7xl mx-auto">
+        <div class="text-center mb-20 reveal">
+          <div class="inline-flex items-center gap-2 mb-4">
+            <i data-lucide="layers" class="w-5 h-5 text-nebula-accent"></i>
+            <span class="text-nebula-accent font-mono text-sm">CAPABILITIES</span>
+          </div>
+          <h2 class="font-display text-4xl md:text-5xl font-bold mb-4">Cosmic Architecture</h2>
+          <p class="text-gray-400 max-w-xl mx-auto">Built with precision engineering for the modern web.</p>
+        </div>
+
+        <div class="grid md:grid-cols-3 gap-8">
+          <!-- Card 1: Speed -->
+          <div class="glass-card rounded-2xl overflow-hidden interactive reveal">
+            <div class="h-48 img-zoom-container relative">
+              <img 
+                src="https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072&auto=format&fit=crop" 
+                alt="Earth from space technology" 
+                class="w-full h-full object-cover img-zoom"
+              >
+              <div class="absolute inset-0 bg-gradient-to-t from-nebula-dark/80 to-transparent"></div>
+              <div class="absolute bottom-4 left-4">
+                <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center backdrop-blur-md border border-white/10">
+                  <i data-lucide="zap" class="w-6 h-6 text-white"></i>
+                </div>
+              </div>
+            </div>
+            <div class="p-8">
+              <h3 class="font-display text-xl font-bold mb-3 text-white">Lightning Fast</h3>
+              <p class="text-gray-400 text-sm leading-relaxed">
+                Optimized WebGL rendering ensures 60fps performance even with thousands of interactive particles.
+              </p>
+            </div>
+          </div>
+
+          <!-- Card 2: Design -->
+          <div class="glass-card rounded-2xl overflow-hidden interactive reveal" style="transition-delay: 100ms;">
+            <div class="h-48 img-zoom-container relative">
+              <img 
+                src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1964&auto=format&fit=crop" 
+                alt="Abstract glass morphism fluid art" 
+                class="w-full h-full object-cover img-zoom"
+              >
+              <div class="absolute inset-0 bg-gradient-to-t from-nebula-dark/80 to-transparent"></div>
+              <div class="absolute bottom-4 left-4">
+                <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-nebula-accent to-blue-500 flex items-center justify-center backdrop-blur-md border border-white/10">
+                  <i data-lucide="palette" class="w-6 h-6 text-white"></i>
+                </div>
+              </div>
+            </div>
+            <div class="p-8">
+              <h3 class="font-display text-xl font-bold mb-3 text-white">Adaptive Design</h3>
+              <p class="text-gray-400 text-sm leading-relaxed">
+                Glassmorphism that adapts to your content. Dynamic blur and transparency based on scroll position.
+              </p>
+            </div>
+          </div>
+
+          <!-- Card 3: Security -->
+          <div class="glass-card rounded-2xl overflow-hidden interactive reveal" style="transition-delay: 200ms;">
+            <div class="h-48 img-zoom-container relative">
+              <img 
+                src="https://images.unsplash.com/photo-1550751827-4bd374c3f58b?q=80&w=2070&auto=format&fit=crop" 
+                alt="Cybersecurity digital lock network" 
+                class="w-full h-full object-cover img-zoom"
+              >
+              <div class="absolute inset-0 bg-gradient-to-t from-nebula-dark/80 to-transparent"></div>
+              <div class="absolute bottom-4 left-4">
+                <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-600 to-pink-500 flex items-center justify-center backdrop-blur-md border border-white/10">
+                  <i data-lucide="shield-check" class="w-6 h-6 text-white"></i>
+                </div>
+              </div>
+            </div>
+            <div class="p-8">
+              <h3 class="font-display text-xl font-bold mb-3 text-white">Secure Core</h3>
+              <p class="text-gray-400 text-sm leading-relaxed">
+                Enterprise-grade security built into the architecture. Your data is protected in the void.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Interactive Showcase with Image -->
+    <section id="showcase" class="py-32 px-6 relative overflow-hidden">
+      <div class="absolute inset-0 bg-gradient-to-b from-transparent via-nebula-accent/5 to-transparent pointer-events-none"></div>
+      
+      <div class="max-w-7xl mx-auto grid md:grid-cols-2 gap-16 items-center">
+        <div class="reveal">
+          <div class="inline-flex items-center gap-2 mb-4">
+            <i data-lucide="mouse-pointer-2" class="w-5 h-5 text-nebula-accent"></i>
+            <span class="text-nebula-accent font-mono text-sm">INTERACTIVE MODULE</span>
+          </div>
+          <h2 class="font-display text-4xl md:text-5xl font-bold mb-6 leading-tight">
+            Control the <br>
+            <span class="text-gradient-accent">Universe</span>
+          </h2>
+          <p class="text-gray-400 mb-8 leading-relaxed">
+            Move your cursor to rotate the starfield. The interface responds to your presence, creating a unique experience for every visitor.
+          </p>
+          
+          <ul class="space-y-4">
+            <li class="flex items-center gap-3 text-gray-300">
+              <div class="w-6 h-6 rounded-full bg-nebula-accent/20 flex items-center justify-center text-nebula-accent">
+                <i data-lucide="check" class="w-4 h-4"></i>
+              </div>
+              Real-time 3D Physics
+            </li>
+            <li class="flex items-center gap-3 text-gray-300">
+              <div class="w-6 h-6 rounded-full bg-nebula-accent/20 flex items-center justify-center text-nebula-accent">
+                <i data-lucide="check" class="w-4 h-4"></i>
+              </div>
+              Mouse Interaction Mapping
+            </li>
+            <li class="flex items-center gap-3 text-gray-300">
+              <div class="w-6 h-6 rounded-full bg-nebula-accent/20 flex items-center justify-center text-nebula-accent">
+                <i data-lucide="check" class="w-4 h-4"></i>
+              </div>
+              Dynamic Color Palettes
+            </li>
+          </ul>
+        </div>
+
+        <div class="relative reveal">
+          <div class="absolute -inset-4 bg-gradient-to-r from-nebula-accent to-nebula-purple opacity-20 blur-3xl rounded-full"></div>
+          <div class="glass-panel rounded-3xl p-2 relative interactive transform hover:scale-[1.02] transition-transform duration-500">
+            <div class="bg-nebula-dark rounded-2xl overflow-hidden aspect-video relative group">
+              <img 
+                src="https://images.unsplash.com/photo-1462331940025-496dfbfc7564?q=80&w=2011&auto=format&fit=crop" 
+                alt="Nebula space stars" 
+                class="w-full h-full object-cover opacity-60 group-hover:opacity-40 transition-opacity duration-500"
+              >
+              <div class="absolute inset-0 flex items-center justify-center">
+                <div class="text-center">
+                  <button class="w-20 h-20 rounded-full border-2 border-nebula-accent/30 flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300 hover:border-nebula-accent/60 bg-black/20 backdrop-blur-sm">
+                    <div class="w-16 h-16 rounded-full bg-nebula-accent/20 flex items-center justify-center group-hover:bg-nebula-accent/30 transition-colors">
+                      <i data-lucide="play" class="w-8 h-8 text-nebula-accent ml-1 fill-nebula-accent/20"></i>
+                    </div>
+                  </button>
+                  <p class="text-sm text-gray-400 font-mono flex items-center justify-center gap-2">
+                    <i data-lucide="eye" class="w-4 h-4"></i>
+                    Interactive Preview
+                  </p>
+                </div>
+              </div>
+              <!-- Grid overlay -->
+              <div class="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:40px_40px]"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="py-32 px-6">
+      <div class="max-w-4xl mx-auto glass-panel rounded-3xl p-12 md:p-20 text-center relative overflow-hidden interactive reveal">
+        <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-nebula-accent to-transparent"></div>
+        
+        <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-nebula-accent/10 mb-8 border border-nebula-accent/20">
+          <i data-lucide="telescope" class="w-8 h-8 text-nebula-accent"></i>
+        </div>
+        
+        <h2 class="font-display text-3xl md:text-5xl font-bold mb-6">Ready to launch?</h2>
+        <p class="text-gray-400 mb-10 max-w-lg mx-auto">
+          Join thousands of developers building the future with Nebula UI.
+        </p>
+        
+        <div class="flex flex-col sm:flex-row gap-4 justify-center">
+          <button class="px-8 py-4 bg-white text-nebula-dark rounded-full font-bold hover:bg-nebula-accent transition-colors shadow-lg shadow-white/10 flex items-center justify-center gap-2">
+            <span>Get Early Access</span>
+            <i data-lucide="arrow-up-right" class="w-4 h-4"></i>
+          </button>
+          <button class="px-8 py-4 glass-panel rounded-full font-medium hover:bg-white/5 transition-colors flex items-center justify-center gap-2">
+            <i data-lucide="message-circle" class="w-5 h-5"></i>
+            <span>Contact Sales</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="border-t border-white/5 pt-20 pb-10 px-6">
+      <div class="max-w-7xl mx-auto grid md:grid-cols-4 gap-12 mb-16">
+        <div class="col-span-2">
+          <div class="flex items-center gap-2 mb-6">
+            <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-nebula-accent to-nebula-purple flex items-center justify-center">
+              <i data-lucide="hexagon" class="w-5 h-5 text-white fill-white"></i>
+            </div>
+            <span class="font-display font-bold text-xl tracking-wider">NEBULA</span>
+          </div>
+          <p class="text-gray-500 max-w-sm">
+            Pioneering the next generation of web interfaces through 3D interactivity and glassmorphic design principles.
+          </p>
+        </div>
+        
+        <div>
+          <h4 class="font-display font-bold mb-6 text-white flex items-center gap-2">
+            <i data-lucide="layout-grid" class="w-4 h-4 text-nebula-accent"></i>
+            Platform
+          </h4>
+          <ul class="space-y-4 text-sm text-gray-500">
+            <li><a href="#" class="hover:text-nebula-accent transition-colors interactive flex items-center gap-2"><i data-lucide="chevron-right" class="w-3 h-3"></i> Features</a></li>
+            <li><a href="#" class="hover:text-nebula-accent transition-colors interactive flex items-center gap-2"><i data-lucide="chevron-right" class="w-3 h-3"></i> Integrations</a></li>
+            <li><a href="#" class="hover:text-nebula-accent transition-colors interactive flex items-center gap-2"><i data-lucide="chevron-right" class="w-3 h-3"></i> Pricing</a></li>
+          </ul>
+        </div>
+        
+        <div>
+          <h4 class="font-display font-bold mb-6 text-white flex items-center gap-2">
+            <i data-lucide="building-2" class="w-4 h-4 text-nebula-accent"></i>
+            Company
+          </h4>
+          <ul class="space-y-4 text-sm text-gray-500">
+            <li><a href="#" class="hover:text-nebula-accent transition-colors interactive flex items-center gap-2"><i data-lucide="chevron-right" class="w-3 h-3"></i> About</a></li>
+            <li><a href="#" class="hover:text-nebula-accent transition-colors interactive flex items-center gap-2"><i data-lucide="chevron-right" class="w-3 h-3"></i> Blog</a></li>
+            <li><a href="#" class="hover:text-nebula-accent transition-colors interactive flex items-center gap-2"><i data-lucide="chevron-right" class="w-3 h-3"></i> Careers</a></li>
+          </ul>
+        </div>
+      </div>
+      
+      <div class="max-w-7xl mx-auto pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-gray-600">
+        <p class="flex items-center gap-2">
+          <i data-lucide="copyright" class="w-4 h-4"></i>
+          2026 Nebula Interface. All rights reserved.
+        </p>
+        <div class="flex gap-6">
+          <a href="#" class="hover:text-white transition-colors interactive flex items-center gap-1">
+            <i data-lucide="lock" class="w-3 h-3"></i> Privacy
+          </a>
+          <a href="#" class="hover:text-white transition-colors interactive flex items-center gap-1">
+            <i data-lucide="file-text" class="w-3 h-3"></i> Terms
+          </a>
+        </div>
+      </div>
+    </footer>
+  </main>
+
+  <!-- Three.js Implementation -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+      }
+    }
+  </script>
+
+  <script type="module">
+    import * as THREE from 'three';
+
+    // Initialize Lucide icons
+    lucide.createIcons();
+
+    // --- Configuration ---
+    const CONFIG = {
+      particleCount: 2000,
+      particleSize: 0.15,
+      rotationSpeed: 0.0005,
+      mouseSensitivity: 0.0001,
+      colors: [0x00f2ff, 0xbd00ff, 0xffffff, 0x4f46e5]
+    };
+
+    // --- Setup ---
+    const canvas = document.getElementById('starfield');
+    const scene = new THREE.Scene();
+    
+    scene.fog = new THREE.FogExp2(0x050510, 0.02);
+
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.z = 30;
+
+    const renderer = new THREE.WebGLRenderer({ 
+      canvas, 
+      alpha: true, 
+      antialias: true,
+      powerPreference: "high-performance"
+    });
+    
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+    // --- Particles ---
+    const geometry = new THREE.BufferGeometry();
+    const positions = new Float32Array(CONFIG.particleCount * 3);
+    const colors = new Float32Array(CONFIG.particleCount * 3);
+    const sizes = new Float32Array(CONFIG.particleCount);
+
+    const colorPalette = CONFIG.colors.map(c => new THREE.Color(c));
+
+    for (let i = 0; i < CONFIG.particleCount; i++) {
+      const r = 10 + Math.random() * 40;
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.acos(2 * Math.random() - 1);
+
+      positions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+      positions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+      positions[i * 3 + 2] = r * Math.cos(phi);
+
+      const color = colorPalette[Math.floor(Math.random() * colorPalette.length)];
+      colors[i * 3] = color.r;
+      colors[i * 3 + 1] = color.g;
+      colors[i * 3 + 2] = color.b;
+
+      sizes[i] = Math.random() * CONFIG.particleSize;
+    }
+
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+
+    const material = new THREE.PointsMaterial({
+      size: CONFIG.particleSize,
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.8,
+      blending: THREE.AdditiveBlending,
+      sizeAttenuation: true
+    });
+
+    const particles = new THREE.Points(geometry, material);
+    scene.add(particles);
+
+    // --- Interaction ---
+    let mouseX = 0;
+    let mouseY = 0;
+    let targetX = 0;
+    let targetY = 0;
+
+    const windowHalfX = window.innerWidth / 2;
+    const windowHalfY = window.innerHeight / 2;
+
+    document.addEventListener('mousemove', (event) => {
+      mouseX = (event.clientX - windowHalfX) * CONFIG.mouseSensitivity;
+      mouseY = (event.clientY - windowHalfY) * CONFIG.mouseSensitivity;
+    });
+
+    // --- Animation Loop ---
+    const clock = new THREE.Clock();
+
+    function animate() {
+      requestAnimationFrame(animate);
+      
+      const elapsedTime = clock.getElapsedTime();
+
+      targetX += (mouseX - targetX) * 0.05;
+      targetY += (mouseY - targetY) * 0.05;
+
+      particles.rotation.y += CONFIG.rotationSpeed + targetX;
+      particles.rotation.x += targetY;
+
+      const positions = particles.geometry.attributes.position.array;
+      for(let i = 0; i < CONFIG.particleCount; i++) {
+        const i3 = i * 3;
+        positions[i3 + 1] += Math.sin(elapsedTime * 0.5 + positions[i3] * 0.05) * 0.02;
+      }
+      particles.geometry.attributes.position.needsUpdate = true;
+
+      renderer.render(scene, camera);
+    }
+
+    animate();
+
+    // --- Resize Handler ---
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // --- Scroll Reveal Observer ---
+    const observerOptions = {
+      threshold: 0.1,
+      rootMargin: "0px 0px -50px 0px"
+    };
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('active');
+        }
+      });
+    }, observerOptions);
+
+    document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+    // --- Navbar Scroll Effect ---
+    const navbar = document.getElementById('navbar');
+    let lastScroll = 0;
+
+    window.addEventListener('scroll', () => {
+      const currentScroll = window.pageYOffset;
+      
+      if (currentScroll > 100) {
+        navbar.classList.add('py-2');
+        navbar.classList.remove('py-4');
+      } else {
+        navbar.classList.add('py-4');
+        navbar.classList.remove('py-2');
+      }
+      
+      lastScroll = currentScroll;
+    });
+  </script>
+</body>
+</html>
